@@ -1,7 +1,6 @@
 FROM python:3.11-slim
 
 # 必要なパッケージのインストール
-# open-jtalk, open-jtalk-mecab-naist-jdic, ffmpeg
 RUN apt-get update && apt-get install -y \
     open-jtalk \
     open-jtalk-mecab-naist-jdic \
@@ -15,7 +14,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ソースコードのコピー
+# 【重要】音声ファイル用のディレクトリ作成とコピー
+# コード内の VOICE_PATH = "/voice/mei_normal.htsvoice" に合わせる
+RUN mkdir -p /voice
+COPY mei_normal.htsvoice /voice/mei_normal.htsvoice
+
+# ソースコードと辞書をコピー
 COPY . .
 
 # 実行

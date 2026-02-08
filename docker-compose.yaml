@@ -1,11 +1,9 @@
 services:
   discord-bot:
     build: .
-    volumes:
-      - ./bot.py:/app/bot.py
-      - ./word_dict.json:/app/word_dict.json
-      # 音声ファイルのマウント (※同じフォルダに配置してください)
-      - ./mei_normal.htsvoice:/voice/mei_normal.htsvoice
+    # GitHub経由の場合はコードのマウント(volumes)を削除します。
+    # コードはDockerfileでイメージの中にコピーされるため不要です。
     environment:
-      - DISCORD_TOKEN=e6019603266e17c73401d975cdaba4a992d0c1b03851230fc1486cfea5dd8ff8
+      # Portainer上で設定する変数を渡す記述
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
     restart: always
