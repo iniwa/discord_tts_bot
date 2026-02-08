@@ -1,8 +1,8 @@
 services:
   discord-bot:
     build: .
-    # GitHub経由の場合はコードのマウント(volumes)を削除します。
-    # コードはDockerfileでイメージの中にコピーされるため不要です。
+    volumes:
+      - /home/iniwa/docker/discordtts/word_dict.json:/app/word_dict.json
     environment:
       # Portainer上で設定する変数を渡す記述
       - DISCORD_TOKEN=${DISCORD_TOKEN}
