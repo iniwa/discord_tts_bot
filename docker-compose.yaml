@@ -3,6 +3,8 @@ services:
     build: .
     volumes:
       - /home/iniwa/docker/discordtts/word_dict.json:/app/word_dict.json
+    tmpfs:
+      - /ram_cache
     environment:
       # Portainer上で設定する変数を渡す記述
       - DISCORD_TOKEN=${DISCORD_TOKEN}

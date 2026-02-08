@@ -9,8 +9,30 @@ import asyncio
 import re
 import romkan
 from collections import defaultdict
+import shutil
 
-TEMP_DIR = "/dev/shm" if os.path.exists("/dev/shm") else "."
+# --- 変更: RAMディスク設定とデータ展開 ---
+# Docker Composeで割り当てたtmpfsのパス
+RAM_ROOT = "/ram_cache"
+
+# 元のファイルパス（ディスク上）
+ORIGINAL_DIC_PATH = "/var/lib/mecab/dic/open-jtalk/naist-jdic"
+ORIGINAL_VOICE_PATH = "/voice/mei_normal.htsvoice"
+
+# RAM上の配置パス
+DIC_PATH = os.path.join(RAM_ROOT, "dic")
+VOICE_PATH = os.path.join(RAM_ROOT, "voice.htsvoice")
+TEMP_DIR = RAM_ROOT  # 一時ファイルもRAM上に保存
+
+print("Copying assets to RAM...")
+# 辞書ディレクトリをRAMへコピー
+if not os.path.exists(DIC_PATH):
+    shutil.copytree(ORIGINAL_DIC_PATH, DIC_PATH)
+
+# 音声ファイルをRAMへコピー
+if not os.path.exists(VOICE_PATH):
+    shutil.copy(ORIGINAL_VOICE_PATH, VOICE_PATH)
+print("Assets copied to RAM.")
 
 # インテントの設定
 intents = discord.Intents.default()
