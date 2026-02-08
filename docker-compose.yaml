@@ -7,5 +7,5 @@ services:
       # 音声ファイルのマウント (※同じフォルダに配置してください)
       - ./mei_normal.htsvoice:/voice/mei_normal.htsvoice
     environment:
-      - DISCORD_TOKEN=ここにあなたのトークンを入力
+      - DISCORD_TOKEN=e6019603266e17c73401d975cdaba4a992d0c1b03851230fc1486cfea5dd8ff8
     restart: always
