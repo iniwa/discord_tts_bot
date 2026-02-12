@@ -233,8 +233,20 @@ async def on_message(message):
 
     text = message.content
     text = re.sub(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+', 'ユーアールエル', text)
-    for word, reading in word_dict.items():
-        text = text.replace(word, reading)
+
+    # --- 修正ここから ---
+    # 辞書適用：文字数が長い順にソートして適用（iniwa等の長い単語を先に変換するため）
+    sorted_items = sorted(word_dict.items(), key=lambda x: len(x[0]), reverse=True)
+
+    for word, reading in sorted_items:
+        # 'w' や 'ww' の場合、前後に英数字がある場合は置換しない（BMW対策）
+        if re.fullmatch(r'w+', word, re.IGNORECASE):
+            pattern = r'(?<![a-zA-Z0-9])' + re.escape(word) + r'(?![a-zA-Z0-9])'
+            text = re.sub(pattern, reading, text)
+        else:
+            text = text.replace(word, reading)
+    # --- 修正ここまで ---
+
     text = re.sub(r'<:(\w+):\d+>', r'\1', text)
     text = romkan.to_hiragana(text)
 
