@@ -200,6 +200,18 @@ async def list_dict(interaction: discord.Interaction):
         message = message[:1990] + "..."
     await interaction.response.send_message(message, ephemeral=True)
 
+@bot.tree.command(name="help", description="コマンド一覧を表示します")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(title="コマンド一覧", color=discord.Color.blue())
+    embed.add_field(name="/join", value="ボイスチャンネルに参加し、読み上げを開始します。", inline=False)
+    embed.add_field(name="/bye", value="ボイスチャンネルから退出します。", inline=False)
+    embed.add_field(name="/add `word` `reading`", value="辞書に単語と読み方を登録します。", inline=False)
+    embed.add_field(name="/remove `word`", value="辞書から単語を削除します。", inline=False)
+    embed.add_field(name="/list", value="登録されている単語の一覧を表示します。", inline=False)
+    embed.add_field(name="/help", value="このヘルプを表示します。", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
 # --- イベント ---
 
 @bot.event
