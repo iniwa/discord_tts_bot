@@ -89,4 +89,13 @@ docker-compose up \-d
 * 本ツールの使用によって生じた不利益について、作者は一切の責任を負いません。  
 * AIによって生成されたコードが含まれるため、予期しない挙動をする可能性があります。
 
-**License:** MIT License
+## **©️ ライセンス・クレジット**
+
+本プロジェクトのソースコードは **MIT License** のもとで公開されています。
+
+また、本ソフトウェアの音声合成には、名古屋工業大学大学院工学研究科によって開発された **HTS Voice "Mei"** を使用しています。
+
+**HTS Voice "Mei"**
+* **Copyright:** Copyright (c) 2009-2018 Nagoya Institute of Technology Department of Computer Science
+* **License:** [Creative Commons Attribution 3.0](http://creativecommons.org/licenses/by/3.0/)
+* **Official Site:** [MMDAgent](http://www.mmdagent.jp/)
