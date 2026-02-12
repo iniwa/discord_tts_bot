@@ -232,6 +232,9 @@ async def on_message(message):
         return
 
     text = message.content
+    # --- 修正: 改行を読点に置換 ---
+    text = text.replace('\n', '、')
+    # ---------------------------
     text = re.sub(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+', 'ユーアールエル', text)
 
     # --- 修正ここから ---
