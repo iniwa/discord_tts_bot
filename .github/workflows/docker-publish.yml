@@ -4,6 +4,8 @@ on:
   push:
     branches: [ "main" ] # mainブランチへのプッシュで発動
     # tags: [ 'v*.*.*' ] # タグプッシュ時にも発動させたい場合はコメントアウト解除
+  schedule:
+    - cron: '0 15 * * 0'  # 毎週日曜 0:00 JST に自動リビルド（依存ライブラリを最新化）
   workflow_dispatch: # 手動実行も許可
 
 env:
