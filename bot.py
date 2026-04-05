@@ -34,6 +34,17 @@ if not os.path.exists(VOICE_PATH):
     shutil.copy(ORIGINAL_VOICE_PATH, VOICE_PATH)
 print("Assets copied to RAM.")
 
+# open_jtalkのウォームアップ（初回遅延を回避）
+_warmup_path = os.path.join(RAM_ROOT, "_warmup.wav")
+subprocess.run(
+    ["open_jtalk", "-x", DIC_PATH, "-m", VOICE_PATH, "-ow", _warmup_path],
+    input="テスト".encode("utf-8"),
+    stderr=subprocess.DEVNULL,
+)
+if os.path.exists(_warmup_path):
+    os.remove(_warmup_path)
+print("Open JTalk warmed up.")
+
 # インテントの設定
 intents = discord.Intents.default()
 intents.message_content = True
@@ -58,8 +69,6 @@ bot = TTSBot()
 
 # Open JTalkの設定
 OPEN_JTALK_BIN = "open_jtalk"
-DIC_PATH = "/var/lib/mecab/dic/open-jtalk/naist-jdic"
-VOICE_PATH = "/voice/mei_normal.htsvoice"
 DICT_FILE = "word_dict.json"
 
 # 設定：省略する文字数
