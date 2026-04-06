@@ -1,101 +1,112 @@
-# **🎵 Simple Discord TTS Bot for Raspberry Pi**
+# Simple Discord TTS Bot
 
-Raspberry Pi（Docker）での運用を想定した、シンプルで軽量なDiscord読み上げBotです。
+Raspberry Pi (Docker) での運用を想定した、シンプルで軽量な Discord 読み上げ Bot です。
 
-Open JTalkを使用しており、外部APIを使用せずにローカルで音声合成を行います。
+Open JTalk を使用し、外部 API なしでローカル音声合成を行います。
 
-ビルド済みのDockerイメージを公開しているため、Raspberry Pi等のDocker環境があればすぐに利用可能です。
+## 特徴
 
-🤖 **Note:** 本プロジェクトのソースコードはAIの支援を受けて作成されています。
+- **Raspberry Pi 最適化** - ARM64 (Raspberry Pi 4) でのセルフホストを前提に設計
+- **軽量・シンプル** - 読み上げに必要な最小限の機能に絞った構成
+- **RAMキャッシュ** - tmpfs を活用し、辞書・音声データをメモリ上で処理。SDカードへの書き込みを軽減
+- **Docker 対応** - GHCR からイメージをプルするだけで起動可能
 
-## **✨ 特徴**
+## 必要要件
 
-* **🍓 Raspberry Pi 最適化:** Raspberry Pi 4でのセルフホストを前提に設計されています。  
-* **🚀 軽量・シンプル:** 読み上げに必要な最小限の機能に絞っています。  
-* **⚡ SDカードに優しい:** 音声生成や辞書データ展開にRAMディスク（tmpfs）を使用する設計になっており、SDカードへの書き込み負荷を軽減し、レスポンスを高速化しています。  
-* **🐳 Docker完全対応:** Docker Hub (GHCR) からイメージをプルするだけで起動できます。
+- Docker / Docker Compose (または Portainer)
+- Discord Bot Token ([Developer Portal](https://discord.com/developers/applications) で取得)
 
-## **📦 必要要件**
+## セットアップ
 
-* **ハードウェア:** Raspberry Pi 4 (またはその他Dockerが動くLinuxマシン)  
-* **ソフトウェア:** Docker, Docker Compose (または Portainer)  
-* **Discord Bot Token:** 開発者ポータルで取得したもの
+### 1. docker-compose.yaml を作成
 
-## **🚀 クイックスタート (推奨)**
+```yaml
+services:
+  discord-bot:
+    image: ghcr.io/<your-username>/discord_tts_bot:latest
+    container_name: discord_tts_bot
+    tmpfs:
+      - /ram_cache
+    volumes:
+      # 辞書ファイルの永続化（ホスト側パスは環境に合わせて変更）
+      - /path/to/word_dict.json:/app/word_dict.json
+    environment:
+      - DISCORD_TOKEN=<your-token>
+      - TZ=Asia/Tokyo
+    restart: unless-stopped
+```
 
-すでにビルドされたDockerイメージを使用する方法です。PortainerのStacks機能、または docker-compose で簡単に起動できます。
+### 2. 辞書ファイルの準備
 
-### **1\. docker-compose.yaml の作成**
+ホスト側に `word_dict.json` を作成します。空の辞書で始める場合:
 
-任意のディレクトリに docker-compose.yaml を作成し、以下の内容を記述します。
+```json
+{}
+```
 
-（Portainerを使用している場合は、"Stacks" \> "Add stack" のWebエディタに貼り付けてください）
+サンプル:
 
-services:  
-  discord-bot:  
-    image: ghcr.io/\<your-username\>/discord\_tts\_bot:latest  
-    container\_name: discord\_tts\_bot  
-    restart: always  
-    \# パフォーマンス最適化（RAMディスク活用）  
-    tmpfs:  
-      \- /ram\_cache  
-    environment:  
-      \# 自身のBotトークンに書き換えてください  
-      \- DISCORD\_TOKEN=your\_token\_here  
-    \# 辞書データを永続化したい（再起動しても登録単語を残したい）場合は  
-    \# 手元に word\_dict.json を用意してコメントアウトを外してください  
-    \# volumes:  
-    \#   \- ./word\_dict.json:/app/word\_dict.json
+```json
+{
+    "w": "わら",
+    "ww": "わらわら",
+    "discord": "でぃすこーど"
+}
+```
 
-### **2\. コンテナの起動**
+### 3. 起動
 
-**Docker Composeの場合:**
+```bash
+docker compose up -d
+```
 
-docker-compose up \-d
+Portainer の場合は Stacks > Add stack から yaml を貼り付けてデプロイしてください。
 
-**Portainerの場合:**
-
-"Deploy the stack" ボタンを押してデプロイします。
-
-## **🛠️ 開発者向けセットアップ (ソースからビルド)**
-
-カスタマイズを行いたい場合は、リポジトリをクローンしてビルドしてください。
-
-1. リポジトリをクローン  
-2. mei\_normal.htsvoice (音響モデル) を配置  
-3. ビルドして起動:  
-   docker-compose up \-d \--build
-
-## **🎮 使い方 (コマンド)**
-
-このBotはスラッシュコマンドに対応しています。
+## コマンド一覧
 
 | コマンド | 説明 |
-| :---- | :---- |
-| /join | ボイスチャンネルに接続し、読み上げを開始します。 |
-| /leave | ボイスチャンネルから切断します。 |
-| /dict-add \[word\] \[read\] | 辞書に単語登録します（例: /dict-add w わら）。 |
-| /dict-del \[word\] | 辞書から単語を削除します。 |
-| /dict-list | 登録されている単語一覧を表示します。 |
-| /help | 利用可能なコマンド一覧を表示します。 |
+| --- | --- |
+| `/join` | ボイスチャンネルに参加し、読み上げを開始 |
+| `/bye` | ボイスチャンネルから退出 |
+| `/add <word> <reading>` | 辞書に単語を登録 (例: `/add w わら`) |
+| `/remove <word>` | 辞書から単語を削除 |
+| `/list` | 登録単語の一覧を表示 |
+| `/notify` | VC参加通知の読み上げを ON/OFF |
+| `/help` | コマンド一覧を表示 |
 
-## **⚙️ 技術的な詳細**
+## 読み上げの仕様
 
-* **RAMキャッシュ:** コンテナ内の /ram\_cache をtmpfs（メモリ）としてマウントしています。Bot起動時にOpen JTalkの辞書と音声データをここに展開し、音声生成処理をすべてメモリ上で行うことで高速化を実現しています。  
-* **辞書機能:** デフォルトの辞書データは word\_dict.json です。
+- `/join` を実行したテキストチャンネルのメッセージを読み上げます
+- 同じVCに接続中に別のテキストチャンネルで `/join` すると、読み上げ対象が切り替わります
+- URL は「ユーアールエル」に変換されます
+- カスタム絵文字は絵文字名のみ読み上げます
+- 辞書は文字数の長い単語から優先的に適用されます
+- 50文字を超えるメッセージは省略されます
+- BOT のいるVCから全員退出すると自動で切断します
+- `/notify` を ON にすると、VCにユーザーが参加した際に「○○さんが参加しました」と読み上げます
 
-## **⚠️ 免責事項**
+## 開発者向け (ソースからビルド)
 
-* 本ツールの使用によって生じた不利益について、作者は一切の責任を負いません。  
-* AIによって生成されたコードが含まれるため、予期しない挙動をする可能性があります。
+```bash
+git clone <repository-url>
+cd discord_tts_bot
+# mei_normal.htsvoice をプロジェクトルートに配置
+docker compose up -d --build
+```
 
-## **©️ ライセンス・クレジット**
+### 技術スタック
+
+- Python 3.11 / discord.py
+- Open JTalk (音声合成) + MeCab辞書 (形態素解析)
+- FFmpeg (音声再生)
+- romkan (ローマ字→ひらがな変換)
+
+## ライセンス
 
 本プロジェクトのソースコードは **MIT License** のもとで公開されています。
 
-また、本ソフトウェアの音声合成には、名古屋工業大学大学院工学研究科によって開発された **HTS Voice "Mei"** を使用しています。
+本ソフトウェアは以下のサードパーティソフトウェア・データを使用しています。
+詳細は [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) を参照してください。
 
-**HTS Voice "Mei"**
-* **Copyright:** Copyright (c) 2009-2018 Nagoya Institute of Technology Department of Computer Science
-* **License:** [Creative Commons Attribution 3.0](http://creativecommons.org/licenses/by/3.0/)
-* **Official Site:** [MMDAgent](http://www.mmdagent.jp/)
+- **Open JTalk** (Modified BSD License) - Copyright (c) 2008-2018 Nagoya Institute of Technology
+- **HTS Voice "Mei"** ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)) - Copyright (c) 2009-2015 Nagoya Institute of Technology / [MMDAgent](http://www.mmdagent.jp/)
