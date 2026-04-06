@@ -65,6 +65,7 @@ class TTSBot(commands.Bot):
         self.active_channels: dict[int, int] = {}
         self.queues: defaultdict[int, deque[str]] = defaultdict(deque)
         self.playing_status: defaultdict[int, bool] = defaultdict(bool)
+        self.announce_join: defaultdict[int, bool] = defaultdict(bool)
 
     async def setup_hook(self):
         await self.tree.sync()
@@ -230,6 +231,13 @@ async def list_dict(interaction: discord.Interaction):
         message = message[:1990] + "..."
     await interaction.response.send_message(message, ephemeral=True)
 
+@bot.tree.command(name="notify", description="参加通知の読み上げを切り替えます")
+async def notify(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    bot.announce_join[guild_id] = not bot.announce_join[guild_id]
+    state = "ON" if bot.announce_join[guild_id] else "OFF"
+    await interaction.response.send_message(f"🔔 参加通知を **{state}** にしました。")
+
 @bot.tree.command(name="help", description="コマンド一覧を表示します")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(title="コマンド一覧", color=discord.Color.blue())
@@ -238,6 +246,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="/add `word` `reading`", value="辞書に単語と読み方を登録します。", inline=False)
     embed.add_field(name="/remove `word`", value="辞書から単語を削除します。", inline=False)
     embed.add_field(name="/list", value="登録されている単語の一覧を表示します。", inline=False)
+    embed.add_field(name="/notify", value="VC参加時の通知読み上げをON/OFFします。", inline=False)
     embed.add_field(name="/help", value="このヘルプを表示します。", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -249,12 +258,33 @@ async def on_voice_state_update(member, before, after):
     """
     ボイスチャンネルの状態が変わったときに呼ばれる
     """
+    if member.bot:
+        return
+
     voice_client = member.guild.voice_client
     if not voice_client or not voice_client.is_connected():
         return
 
+    bot_channel_id = voice_client.channel.id
+
+    # メンバーがBOTのいるチャンネルに参加した場合、通知読み上げ
+    if bot.announce_join[member.guild.id]:
+        joined_bot_channel = (
+            after.channel and after.channel.id == bot_channel_id
+            and (not before.channel or before.channel.id != bot_channel_id)
+        )
+        if joined_bot_channel:
+            text = f"{member.display_name}さんが参加しました"
+            filename = os.path.join(TEMP_DIR, f"output_{uuid.uuid4()}.wav")
+            loop = asyncio.get_running_loop()
+            success = await loop.run_in_executor(None, generate_voice, text, filename)
+            if success:
+                bot.queues[member.guild.id].append(filename)
+                if not bot.playing_status[member.guild.id]:
+                    await play_next(member.guild)
+
     # メンバーが退出、または移動したチャンネルが、BOTのいるチャンネルだった場合
-    if before.channel and before.channel.id == voice_client.channel.id:
+    if before.channel and before.channel.id == bot_channel_id:
         # BOT以外に誰もいなくなったら切断
         if len(voice_client.channel.members) == 1:
             await cleanup_and_disconnect(member.guild)
