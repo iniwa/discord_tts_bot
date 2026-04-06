@@ -1,10 +1,13 @@
 services:
   discord-bot:
-    image: ghcr.io/iniwa/discord_tts_bot:latest
+    image: ghcr.io/<your-username>/discord_tts_bot:latest
     container_name: discord_tts_bot
     tmpfs:
       - /ram_cache
+    volumes:
+      # 辞書���ァイルの永続化（ホスト側パスは環境に合わせて変更）
+      - /path/to/word_dict.json:/app/word_dict.json
     environment:
-      # Portainer上で設定する変数を渡す記述
       - DISCORD_TOKEN=${DISCORD_TOKEN}
-    restart: always
+      - TZ=Asia/Tokyo
+    restart: unless-stopped

@@ -7,9 +7,17 @@ import uuid
 import json
 import asyncio
 import re
+import logging
 import romkan
-from collections import defaultdict
+from collections import defaultdict, deque
 import shutil
+
+# ログ設定
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+log = logging.getLogger(__name__)
 
 # --- 変更: RAMディスク設定とデータ展開 ---
 # Docker Composeで割り当てたtmpfsのパス
@@ -24,15 +32,12 @@ DIC_PATH = os.path.join(RAM_ROOT, "dic")
 VOICE_PATH = os.path.join(RAM_ROOT, "voice.htsvoice")
 TEMP_DIR = RAM_ROOT  # 一時ファイルもRAM上に保存
 
-print("Copying assets to RAM...")
-# 辞書ディレクトリをRAMへコピー
+log.info("Copying assets to RAM...")
 if not os.path.exists(DIC_PATH):
     shutil.copytree(ORIGINAL_DIC_PATH, DIC_PATH)
-
-# 音声ファイルをRAMへコピー
 if not os.path.exists(VOICE_PATH):
     shutil.copy(ORIGINAL_VOICE_PATH, VOICE_PATH)
-print("Assets copied to RAM.")
+log.info("Assets copied to RAM.")
 
 # open_jtalkのウォームアップ（初回遅延を回避）
 _warmup_path = os.path.join(RAM_ROOT, "_warmup.wav")
@@ -41,9 +46,11 @@ subprocess.run(
     input="テスト".encode("utf-8"),
     stderr=subprocess.DEVNULL,
 )
-if os.path.exists(_warmup_path):
+try:
     os.remove(_warmup_path)
-print("Open JTalk warmed up.")
+except OSError:
+    pass
+log.info("Open JTalk warmed up.")
 
 # インテントの設定
 intents = discord.Intents.default()
@@ -55,12 +62,9 @@ intents.guilds = True
 class TTSBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='.', intents=intents, help_command=None)
-        # 読み上げ対象のチャンネルID管理: {guild_id: channel_id}
-        self.active_channels = {}
-        # 読み上げキュー管理: {guild_id: [filename1, filename2, ...]}
-        self.queues = defaultdict(list)
-        # 再生状態管理: {guild_id: True/False}
-        self.playing_status = defaultdict(bool)
+        self.active_channels: dict[int, int] = {}
+        self.queues: defaultdict[int, deque[str]] = defaultdict(deque)
+        self.playing_status: defaultdict[int, bool] = defaultdict(bool)
 
     async def setup_hook(self):
         await self.tree.sync()
@@ -91,18 +95,18 @@ word_dict = load_dict()
 # --- 共通関数 ---
 
 async def cleanup_and_disconnect(guild):
-    """
-    切断時の後片付けと切断処理を行う共通関数
-    """
-    # キューのクリア
+    # キュー内の一時ファイルを削除してからクリア
+    for filepath in bot.queues.get(guild.id, deque()):
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
     if guild.id in bot.queues:
         bot.queues[guild.id].clear()
-    
-    # 管理用変数のリセット
+
     bot.active_channels.pop(guild.id, None)
     bot.playing_status[guild.id] = False
 
-    # 切断
     if guild.voice_client:
         await guild.voice_client.disconnect()
 
@@ -119,59 +123,76 @@ def generate_voice(text, output_path):
     ]
     try:
         subprocess.run(cmd, input=text.encode("utf-8"), check=True, stderr=subprocess.PIPE)
-        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-            return True
-        return False
-    except Exception as e:
-        print(f"[Error] generate_voice: {e}")
+        return os.path.exists(output_path) and os.path.getsize(output_path) > 0
+    except subprocess.CalledProcessError as e:
+        log.error("generate_voice failed: %s", e.stderr.decode(errors="replace"))
         return False
 
 # --- 再生管理関数 ---
 
-def play_next(guild):
-    # キューが空なら再生終了
+async def play_next(guild):
     if not bot.queues[guild.id]:
         bot.playing_status[guild.id] = False
         return
 
     bot.playing_status[guild.id] = True
-    audio_path = bot.queues[guild.id].pop(0)
+    audio_path = bot.queues[guild.id].popleft()
 
     voice_client = guild.voice_client
     if not voice_client or not voice_client.is_connected():
         bot.playing_status[guild.id] = False
-        if os.path.exists(audio_path):
+        try:
             os.remove(audio_path)
+        except OSError:
+            pass
         return
 
     try:
         source = discord.FFmpegPCMAudio(audio_path)
-        
+
         def after_playing(error):
-            if os.path.exists(audio_path):
+            try:
                 os.remove(audio_path)
-            play_next(guild)
+            except OSError:
+                pass
+            if error:
+                log.error("Playback error: %s", error)
+            asyncio.run_coroutine_threadsafe(play_next(guild), bot.loop)
 
         voice_client.play(source, after=after_playing)
-    
+
     except Exception:
-        if os.path.exists(audio_path):
+        log.exception("play_next error")
+        try:
             os.remove(audio_path)
-        play_next(guild)
+        except OSError:
+            pass
+        await play_next(guild)
 
 # --- コマンド群 ---
 
 @bot.tree.command(name="join", description="ボイスチャンネルに参加します")
 async def join_channel(interaction: discord.Interaction):
     await interaction.response.defer()
-    
-    if interaction.user.voice:
-        channel = interaction.user.voice.channel
-        await channel.connect()
-        bot.active_channels[interaction.guild.id] = interaction.channel.id
-        await interaction.followup.send(f"🔊 **{channel.name}** に参加しました。")
-    else:
+
+    if not interaction.user.voice:
         await interaction.followup.send("ボイスチャンネルに参加してから実行してください。", ephemeral=True)
+        return
+
+    channel = interaction.user.voice.channel
+    vc = interaction.guild.voice_client
+
+    if vc:
+        if vc.channel.id == channel.id:
+            bot.active_channels[interaction.guild.id] = interaction.channel.id
+            await interaction.followup.send("🔊 読み上げ対象をこのチャンネルに変更しました。")
+            return
+        await vc.move_to(channel)
+    else:
+        await channel.connect()
+
+    bot.active_channels[interaction.guild.id] = interaction.channel.id
+    await interaction.followup.send(f"🔊 **{channel.name}** に参加しました。")
 
 @bot.tree.command(name="bye", description="ボイスチャンネルから退出します")
 async def bye(interaction: discord.Interaction):
@@ -240,7 +261,7 @@ async def on_voice_state_update(member, before, after):
 
 @bot.event
 async def on_message(message):
-    if message.author.bot:
+    if message.author.bot or not message.guild:
         return
 
     await bot.process_commands(message)
@@ -259,7 +280,7 @@ async def on_message(message):
     text = re.sub(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+', 'ユーアールエル', text)
 
     # --- 修正ここから ---
-    # 辞書適用：文字数が長い順にソートして適用（iniwa等の長い単語を先に変換するため）
+    # 辞書適用：文字数が長い順にソートして適用（長い単語を先に変換するため）
     sorted_items = sorted(word_dict.items(), key=lambda x: len(x[0]), reverse=True)
 
     for word, reading in sorted_items:
@@ -287,10 +308,10 @@ async def on_message(message):
     if success:
         bot.queues[message.guild.id].append(filename)
         if not bot.playing_status[message.guild.id]:
-            play_next(message.guild)
+            await play_next(message.guild)
 
 token = os.getenv("DISCORD_TOKEN")
 if token:
     bot.run(token)
 else:
-    print("Error: DISCORD_TOKEN is not set.")
+    log.error("DISCORD_TOKEN is not set.")

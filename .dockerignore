@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+.claudeignore
+.claude
+.serena
+CLAUDE.md
+CLAUDE_ja.md
+README.md
+LICENSE
+docker-compose.yaml
+*.md
