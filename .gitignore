@@ -4,3 +4,6 @@
 .claude
 CLAUDE.md
 CLAUDE_ja.md
+.env
+.env.*
+.git.bak

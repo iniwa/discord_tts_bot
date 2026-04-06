@@ -10,3 +10,5 @@ README.md
 LICENSE
 docker-compose.yaml
 *.md
+.env
+.env.*

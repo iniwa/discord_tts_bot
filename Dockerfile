@@ -19,8 +19,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /voice
 COPY mei_normal.htsvoice /voice/mei_normal.htsvoice
 
+# 非rootユーザーの作成
+RUN useradd -r -s /bin/false appuser
+
 # ソースコードと辞書をコピー
 COPY . .
+
+# 非rootユーザーで実行
+USER appuser
 
 # 実行
 CMD ["python", "bot.py"]
