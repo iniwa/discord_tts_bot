@@ -208,6 +208,17 @@ async def join_channel(interaction: discord.Interaction):
         await channel.connect()
 
     bot.active_channels[interaction.guild.id] = interaction.channel.id
+
+    # FFmpegウォームアップ: 無音再生で初回遅延を回避
+    vc = interaction.guild.voice_client
+    if vc:
+        warmup_path = os.path.join(TEMP_DIR, f"_warmup_{uuid.uuid4()}.wav")
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, generate_voice, "。", warmup_path)
+        if os.path.exists(warmup_path):
+            source = discord.FFmpegPCMAudio(warmup_path)
+            vc.play(source, after=lambda e: os.remove(warmup_path) if os.path.exists(warmup_path) else None)
+
     await interaction.followup.send(f"🔊 **{channel.name}** に参加しました。")
 
 @bot.tree.command(name="bye", description="ボイスチャンネルから退出します")
