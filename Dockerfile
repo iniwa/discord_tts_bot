@@ -22,14 +22,8 @@ COPY mei_normal.htsvoice /voice/mei_normal.htsvoice
 # 非rootユーザーの作成
 RUN useradd -r -s /bin/false appuser
 
-# tmpfs マウントポイントを作成し、appuser に権限付与
-RUN mkdir -p /ram_cache && chown appuser:appuser /ram_cache
-
 # ソースコードと辞書をコピー
 COPY . .
 
-# 非rootユーザーで実行
-USER appuser
-
-# 実行
-CMD ["python", "bot.py"]
+# エントリポイント: tmpfsの権限修正後にappuserで実行
+CMD ["sh", "-c", "chown appuser:appuser /ram_cache && exec su -s /bin/sh appuser -c 'python bot.py'"]
