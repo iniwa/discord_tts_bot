@@ -214,7 +214,7 @@ async def join_channel(interaction: discord.Interaction):
     if vc:
         warmup_path = os.path.join(TEMP_DIR, f"_warmup_{uuid.uuid4()}.wav")
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, generate_voice, "。", warmup_path)
+        await loop.run_in_executor(None, generate_voice, "あ", warmup_path)
         if os.path.exists(warmup_path):
             source = discord.FFmpegPCMAudio(warmup_path)
             vc.play(source, after=lambda e: os.remove(warmup_path) if os.path.exists(warmup_path) else None)

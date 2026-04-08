@@ -25,5 +25,5 @@ RUN useradd -r -s /bin/false appuser
 # ソースコードと辞書をコピー
 COPY . .
 
-# エントリポイント: tmpfsの権限修正後にappuserで実行
-CMD ["sh", "-c", "chown appuser:appuser /ram_cache && exec su -s /bin/sh appuser -c 'python bot.py'"]
+# エントリポイント: tmpfs・マウントファイルの権限修正後にappuserで実行
+CMD ["sh", "-c", "chown appuser:appuser /ram_cache /app/word_dict.json /app/settings.json 2>/dev/null; exec su -s /bin/sh appuser -c 'python bot.py'"]
