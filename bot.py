@@ -58,23 +58,6 @@ intents.message_content = True
 intents.voice_states = True
 intents.guilds = True
 
-# --- BOTクラスの定義 ---
-class TTSBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix='.', intents=intents, help_command=None)
-        self.active_channels: dict[int, int] = {}
-        self.queues: defaultdict[int, deque[str]] = defaultdict(deque)
-        self.playing_status: defaultdict[int, bool] = defaultdict(bool)
-        # settings.json から復元（キーは文字列なのでintに変換）
-        self.announce_join: defaultdict[int, bool] = defaultdict(bool)
-        for k, v in settings.get("announce_join", {}).items():
-            self.announce_join[int(k)] = v
-
-    async def setup_hook(self):
-        await self.tree.sync()
-
-bot = TTSBot()
-
 # Open JTalkの設定
 OPEN_JTALK_BIN = "open_jtalk"
 DICT_FILE = "word_dict.json"
@@ -107,6 +90,23 @@ def save_settings(data):
 
 word_dict = load_dict()
 settings = load_settings()
+
+# --- BOTクラスの定義 ---
+class TTSBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix='.', intents=intents, help_command=None)
+        self.active_channels: dict[int, int] = {}
+        self.queues: defaultdict[int, deque[str]] = defaultdict(deque)
+        self.playing_status: defaultdict[int, bool] = defaultdict(bool)
+        # settings.json から復元（キーは文字列なのでintに変換）
+        self.announce_join: defaultdict[int, bool] = defaultdict(bool)
+        for k, v in settings.get("announce_join", {}).items():
+            self.announce_join[int(k)] = v
+
+    async def setup_hook(self):
+        await self.tree.sync()
+
+bot = TTSBot()
 
 # --- 共通関数 ---
 
