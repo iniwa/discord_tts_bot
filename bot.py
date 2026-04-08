@@ -79,7 +79,7 @@ def save_dict(data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 def load_settings():
-    if os.path.exists(SETTINGS_FILE):
+    if os.path.exists(SETTINGS_FILE) and os.path.getsize(SETTINGS_FILE) > 0:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
