@@ -65,7 +65,10 @@ class TTSBot(commands.Bot):
         self.active_channels: dict[int, int] = {}
         self.queues: defaultdict[int, deque[str]] = defaultdict(deque)
         self.playing_status: defaultdict[int, bool] = defaultdict(bool)
+        # settings.json から復元（キーは文字列なのでintに変換）
         self.announce_join: defaultdict[int, bool] = defaultdict(bool)
+        for k, v in settings.get("announce_join", {}).items():
+            self.announce_join[int(k)] = v
 
     async def setup_hook(self):
         await self.tree.sync()
@@ -75,6 +78,7 @@ bot = TTSBot()
 # Open JTalkの設定
 OPEN_JTALK_BIN = "open_jtalk"
 DICT_FILE = "word_dict.json"
+SETTINGS_FILE = "settings.json"
 
 # 設定：省略する文字数
 MAX_LENGTH = 50
@@ -91,7 +95,18 @@ def save_dict(data):
     with open(DICT_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_settings(data):
+    with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
 word_dict = load_dict()
+settings = load_settings()
 
 # --- 共通関数 ---
 
@@ -235,6 +250,8 @@ async def list_dict(interaction: discord.Interaction):
 async def notify(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     bot.announce_join[guild_id] = not bot.announce_join[guild_id]
+    settings["announce_join"] = {str(k): v for k, v in bot.announce_join.items()}
+    save_settings(settings)
     state = "ON" if bot.announce_join[guild_id] else "OFF"
     await interaction.response.send_message(f"🔔 参加通知を **{state}** にしました。")
 
