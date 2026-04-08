@@ -22,6 +22,9 @@ COPY mei_normal.htsvoice /voice/mei_normal.htsvoice
 # 非rootユーザーの作成
 RUN useradd -r -s /bin/false appuser
 
+# tmpfs マウントポイントを作成し、appuser に権限付与
+RUN mkdir -p /ram_cache && chown appuser:appuser /ram_cache
+
 # ソースコードと辞書をコピー
 COPY . .
 
