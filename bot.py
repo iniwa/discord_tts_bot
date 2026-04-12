@@ -109,7 +109,7 @@ class TTSBot(commands.Bot):
         self.queues: defaultdict[int, deque[str]] = defaultdict(deque)
         self.playing_status: defaultdict[int, bool] = defaultdict(bool)
         # settings.json から復元（キーは文字列なのでintに変換）
-        self.announce_join: defaultdict[int, bool] = defaultdict(bool)
+        self.announce_join: defaultdict[int, bool] = defaultdict(lambda: True)
         for k, v in settings.get("announce_join", {}).items():
             self.announce_join[int(k)] = v
 

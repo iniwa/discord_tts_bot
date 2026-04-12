@@ -7,6 +7,8 @@ services:
     volumes:
       # 辞書���ァイルの永続化（ホスト側パスは環境に合わせて変更）
       - /path/to/word_dict.json:/app/word_dict.json
+      # 設定ファイル（/notifyなど）の永続化
+      - /path/to/settings.json:/app/settings.json
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - TZ=Asia/Tokyo
