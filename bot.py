@@ -88,6 +88,16 @@ def save_settings(data):
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+def apply_dict(text: str) -> str:
+    sorted_items = sorted(word_dict.items(), key=lambda x: len(x[0]), reverse=True)
+    for word, reading in sorted_items:
+        if re.fullmatch(r'w+', word, re.IGNORECASE):
+            pattern = r'(?<![a-zA-Z0-9])' + re.escape(word) + r'(?![a-zA-Z0-9])'
+            text = re.sub(pattern, reading, text)
+        else:
+            text = text.replace(word, reading)
+    return romkan.to_hiragana(text)
+
 word_dict = load_dict()
 settings = load_settings()
 
@@ -299,17 +309,25 @@ async def on_voice_state_update(member, before, after):
 
     bot_channel_id = voice_client.channel.id
 
-    # メンバーがBOTのいるチャンネルに参加した場合、通知読み上げ
+    joined_bot_channel = (
+        after.channel and after.channel.id == bot_channel_id
+        and (not before.channel or before.channel.id != bot_channel_id)
+    )
+    left_bot_channel = (
+        before.channel and before.channel.id == bot_channel_id
+        and (not after.channel or after.channel.id != bot_channel_id)
+    )
+
     if bot.announce_join[member.guild.id]:
-        joined_bot_channel = (
-            after.channel and after.channel.id == bot_channel_id
-            and (not before.channel or before.channel.id != bot_channel_id)
-        )
+        announce_text = None
         if joined_bot_channel:
-            text = f"{member.display_name}さんが参加しました"
+            announce_text = f"{apply_dict(member.display_name)}さんが参加しました"
+        elif left_bot_channel and len(voice_client.channel.members) > 1:
+            announce_text = f"{apply_dict(member.display_name)}さんが退出しました"
+        if announce_text:
             filename = os.path.join(TEMP_DIR, f"output_{uuid.uuid4()}.wav")
             loop = asyncio.get_running_loop()
-            success = await loop.run_in_executor(None, generate_voice, text, filename)
+            success = await loop.run_in_executor(None, generate_voice, announce_text, filename)
             if success:
                 bot.queues[member.guild.id].append(filename)
                 if not bot.playing_status[member.guild.id]:
