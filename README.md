@@ -34,6 +34,15 @@ services:
       - DISCORD_TOKEN=<your-token>
       - TZ=Asia/Tokyo
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
 ### 2. 辞書ファイルの準備
