@@ -88,6 +88,12 @@ def save_settings(data):
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+# 読み上げで問題となる括弧類の記号を除去（全角・半角）
+_SYMBOL_RE = re.compile(r'[（）()【】「」『』〔〕［］\[\]｛｝{}〈〉《》]')
+
+def strip_symbols(text: str) -> str:
+    return _SYMBOL_RE.sub('', text)
+
 def apply_dict(text: str) -> str:
     sorted_items = sorted(word_dict.items(), key=lambda x: len(x[0]), reverse=True)
     for word, reading in sorted_items:
@@ -96,6 +102,7 @@ def apply_dict(text: str) -> str:
             text = re.sub(pattern, reading, text)
         else:
             text = text.replace(word, reading)
+    text = strip_symbols(text)
     return romkan.to_hiragana(text)
 
 word_dict = load_dict()
@@ -373,6 +380,7 @@ async def on_message(message):
     # --- 修正ここまで ---
 
     text = re.sub(r'<:(\w+):\d+>', r'\1', text)
+    text = strip_symbols(text)
     text = romkan.to_hiragana(text)
 
     if len(text) > MAX_LENGTH:
