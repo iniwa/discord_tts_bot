@@ -34,6 +34,15 @@ Claude Code is responsible for:
 - running requested verification where possible
 - reporting changed files, summary, verification results, blocked checks, and design questions
 
+## Claude Code Model Policy
+Claude Code normally runs in auto mode (automatic model selection). No fixed coordinator model is assumed.
+
+To make this work:
+- Codex writes handoffs at a granularity that a Sonnet-grade model can complete without design judgment.
+- If a handoff turns out to require a design decision, Claude Code stops and returns the question to Codex instead of deciding.
+- Claude Code must not change documented design intent, expand scope beyond the handoff, introduce dependencies, build tooling, packaging, CI/CD, deployment, or external exposure changes, or touch secrets, credentials, `.env`, or local settings unless explicitly listed.
+- If the environment cannot follow this premise, Claude Code continues with what is available and reports the limitation.
+
 ## Decision Rule
 Keep work in Codex when:
 - requirements are ambiguous

@@ -18,6 +18,12 @@
 - Do not commit automatically unless explicitly requested.
 - Report changed files, summary, verification results, blocked checks, and any design questions that should return to Codex.
 
+## Model Policy
+- Run in auto mode (automatic model selection). No fixed coordinator model or default subagent delegation.
+- Codex handoffs are written to be completable without design judgment. If a design decision turns out to be required, stop and return the question to Codex.
+- Do not change documented design intent, add dependencies, or alter build/deploy/external exposure without explicit instruction.
+- If the environment cannot follow this premise, continue with the available model and report the limitation.
+
 ## Environment
 - Primary environment: Raspberry Pi Docker / linux/arm64
 - Working in `D:/Git/` means Home Sub PC.
@@ -33,8 +39,13 @@
 - Dockerfile
 - docker-compose.yaml
 
+## Protected Files
+- Do not edit or delete: `.env`, real `word_dict.json` / `settings.json` runtime data, `mei_normal.htsvoice`, secrets.
+- Repo copies of `word_dict.json` are sample data; production data lives on the Raspberry Pi host.
+
 ## Verification
 - Run the checks listed in the Codex handoff.
+- Baseline check when no handoff specifies one: `python -m py_compile bot.py`
 - If verification cannot be run, report the reason.
 
 ## Reporting
@@ -43,6 +54,14 @@
 - Verification results
 - Blocked checks
 - Design questions for Codex
+
+## Tooling
+- Use **Serena MCP** tools for code navigation and editing to maximize efficiency (symbol search, overview, replace, insert, etc.)
+- Use **Tavily MCP** tools for web search and research:
+  - `tavily_search` — General web search for documentation, error messages, library usage, etc.
+  - `tavily_crawl` — Crawl a specific website for detailed information
+  - `tavily_extract` — Extract structured content from a URL
+  - `tavily_research` — In-depth research on a topic (use for complex or multi-faceted questions)
 
 ## Knowledge Persistence
 Durable project workflow decisions belong in AGENTS.md. Surface implementation discoveries that should guide future sessions so Codex can decide whether to record them.

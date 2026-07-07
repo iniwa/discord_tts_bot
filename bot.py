@@ -31,6 +31,7 @@ ORIGINAL_VOICE_PATH = "/voice/mei_normal.htsvoice"
 DIC_PATH = os.path.join(RAM_ROOT, "dic")
 VOICE_PATH = os.path.join(RAM_ROOT, "voice.htsvoice")
 TEMP_DIR = RAM_ROOT  # 一時ファイルもRAM上に保存
+SUBPROCESS_TIMEOUT = 10
 
 log.info("Copying assets to RAM...")
 if not os.path.exists(DIC_PATH):
@@ -41,16 +42,21 @@ log.info("Assets copied to RAM.")
 
 # open_jtalkのウォームアップ（初回遅延を回避）
 _warmup_path = os.path.join(RAM_ROOT, "_warmup.wav")
-subprocess.run(
-    ["open_jtalk", "-x", DIC_PATH, "-m", VOICE_PATH, "-ow", _warmup_path],
-    input="テスト".encode("utf-8"),
-    stderr=subprocess.DEVNULL,
-)
 try:
-    os.remove(_warmup_path)
-except OSError:
-    pass
-log.info("Open JTalk warmed up.")
+    subprocess.run(
+        ["open_jtalk", "-x", DIC_PATH, "-m", VOICE_PATH, "-ow", _warmup_path],
+        input="テスト".encode("utf-8"),
+        stderr=subprocess.DEVNULL,
+        timeout=SUBPROCESS_TIMEOUT,
+    )
+    log.info("Open JTalk warmed up.")
+except subprocess.TimeoutExpired:
+    log.error("Open JTalk warmup timed out after %s seconds.", SUBPROCESS_TIMEOUT)
+finally:
+    try:
+        os.remove(_warmup_path)
+    except OSError:
+        pass
 
 # インテントの設定
 intents = discord.Intents.default()
@@ -65,28 +71,43 @@ SETTINGS_FILE = "settings.json"
 
 # 設定：省略する文字数
 MAX_LENGTH = 50
+MAX_QUEUE_SIZE = 20
 
 # --- 辞書関連 ---
 
 def load_dict():
     if os.path.exists(DICT_FILE):
-        with open(DICT_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return load_json_file(DICT_FILE)
     return {}
 
 def save_dict(data):
     with open(DICT_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+async def save_dict_async(data):
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, save_dict, data)
+
 def load_settings():
     if os.path.exists(SETTINGS_FILE) and os.path.getsize(SETTINGS_FILE) > 0:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        return load_json_file(SETTINGS_FILE)
     return {}
 
 def save_settings(data):
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
+
+async def save_settings_async(data):
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, save_settings, data)
+
+def load_json_file(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        log.warning("%s is broken JSON. Continue with empty settings.", path)
+        return {}
 
 # 読み上げで問題となる括弧類の記号を除去（全角・半角）
 _SYMBOL_RE = re.compile(r'[（）()【】「」『』〔〕［］\[\]｛｝{}〈〉《》]')
@@ -94,7 +115,7 @@ _SYMBOL_RE = re.compile(r'[（）()【】「」『』〔〕［］\[\]｛｝{}〈
 def strip_symbols(text: str) -> str:
     return _SYMBOL_RE.sub('', text)
 
-def apply_dict(text: str) -> str:
+def apply_dict(text: str, normalize: bool = True) -> str:
     sorted_items = sorted(word_dict.items(), key=lambda x: len(x[0]), reverse=True)
     for word, reading in sorted_items:
         if re.fullmatch(r'w+', word, re.IGNORECASE):
@@ -102,6 +123,8 @@ def apply_dict(text: str) -> str:
             text = re.sub(pattern, reading, text)
         else:
             text = text.replace(word, reading)
+    if not normalize:
+        return text
     text = strip_symbols(text)
     return romkan.to_hiragana(text)
 
@@ -128,20 +151,34 @@ bot = TTSBot()
 # --- 共通関数 ---
 
 async def cleanup_and_disconnect(guild):
+    cleanup_guild_state(guild.id)
+
+    if guild.voice_client:
+        await guild.voice_client.disconnect()
+
+def cleanup_guild_state(guild_id):
     # キュー内の一時ファイルを削除してからクリア
-    for filepath in bot.queues.get(guild.id, deque()):
+    for filepath in bot.queues.get(guild_id, deque()):
         try:
             os.remove(filepath)
         except OSError:
             pass
-    if guild.id in bot.queues:
-        bot.queues[guild.id].clear()
+    if guild_id in bot.queues:
+        bot.queues[guild_id].clear()
 
-    bot.active_channels.pop(guild.id, None)
-    bot.playing_status[guild.id] = False
+    bot.active_channels.pop(guild_id, None)
+    bot.playing_status[guild_id] = False
 
-    if guild.voice_client:
-        await guild.voice_client.disconnect()
+def enqueue_audio(guild_id, filepath):
+    queue = bot.queues[guild_id]
+    while len(queue) >= MAX_QUEUE_SIZE:
+        old_path = queue.popleft()
+        try:
+            os.remove(old_path)
+        except OSError:
+            pass
+        log.warning("Dropped old TTS queue item for guild %s because queue is full.", guild_id)
+    queue.append(filepath)
 
 # --- 音声生成関数 ---
 
@@ -155,10 +192,19 @@ def generate_voice(text, output_path):
         "-jf", "1.0",
     ]
     try:
-        subprocess.run(cmd, input=text.encode("utf-8"), check=True, stderr=subprocess.PIPE)
+        subprocess.run(
+            cmd,
+            input=text.encode("utf-8"),
+            check=True,
+            stderr=subprocess.PIPE,
+            timeout=SUBPROCESS_TIMEOUT,
+        )
         return os.path.exists(output_path) and os.path.getsize(output_path) > 0
     except subprocess.CalledProcessError as e:
         log.error("generate_voice failed: %s", e.stderr.decode(errors="replace"))
+        return False
+    except subprocess.TimeoutExpired:
+        log.error("generate_voice timed out after %s seconds.", SUBPROCESS_TIMEOUT)
         return False
 
 # --- 再生管理関数 ---
@@ -231,10 +277,18 @@ async def join_channel(interaction: discord.Interaction):
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, generate_voice, "あ", warmup_path)
     if os.path.exists(warmup_path):
-        await loop.run_in_executor(None, lambda: subprocess.run(
-            ["ffmpeg", "-i", warmup_path, "-f", "null", "-"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        ))
+        def warmup_ffmpeg():
+            try:
+                subprocess.run(
+                    ["ffmpeg", "-i", warmup_path, "-f", "null", "-"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=SUBPROCESS_TIMEOUT,
+                )
+            except subprocess.TimeoutExpired:
+                log.error("FFmpeg warmup timed out after %s seconds.", SUBPROCESS_TIMEOUT)
+
+        await loop.run_in_executor(None, warmup_ffmpeg)
         try:
             os.remove(warmup_path)
         except OSError:
@@ -254,7 +308,7 @@ async def bye(interaction: discord.Interaction):
 @app_commands.describe(word="登録する単語", reading="読み方")
 async def add(interaction: discord.Interaction, word: str, reading: str):
     word_dict[word] = reading
-    save_dict(word_dict)
+    await save_dict_async(word_dict)
     await interaction.response.send_message(f'📝 登録: **{word}** → {reading}')
 
 @bot.tree.command(name="remove", description="辞書から単語を削除します")
@@ -262,7 +316,7 @@ async def add(interaction: discord.Interaction, word: str, reading: str):
 async def remove(interaction: discord.Interaction, word: str):
     if word in word_dict:
         del word_dict[word]
-        save_dict(word_dict)
+        await save_dict_async(word_dict)
         await interaction.response.send_message(f'🗑️ 削除: {word}')
     else:
         await interaction.response.send_message(f'未登録です: {word}', ephemeral=True)
@@ -283,7 +337,7 @@ async def notify(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     bot.announce_join[guild_id] = not bot.announce_join[guild_id]
     settings["announce_join"] = {str(k): v for k, v in bot.announce_join.items()}
-    save_settings(settings)
+    await save_settings_async(settings)
     state = "ON" if bot.announce_join[guild_id] else "OFF"
     await interaction.response.send_message(f"🔔 参加通知を **{state}** にしました。")
 
@@ -307,6 +361,10 @@ async def on_voice_state_update(member, before, after):
     """
     ボイスチャンネルの状態が変わったときに呼ばれる
     """
+    if bot.user and member.id == bot.user.id and before.channel and after.channel is None:
+        cleanup_guild_state(member.guild.id)
+        return
+
     if member.bot:
         return
 
@@ -336,7 +394,7 @@ async def on_voice_state_update(member, before, after):
             loop = asyncio.get_running_loop()
             success = await loop.run_in_executor(None, generate_voice, announce_text, filename)
             if success:
-                bot.queues[member.guild.id].append(filename)
+                enqueue_audio(member.guild.id, filename)
                 if not bot.playing_status[member.guild.id]:
                     await play_next(member.guild)
 
@@ -351,8 +409,6 @@ async def on_message(message):
     if message.author.bot or not message.guild:
         return
 
-    await bot.process_commands(message)
-
     target_channel_id = bot.active_channels.get(message.guild.id)
     if message.channel.id != target_channel_id:
         return
@@ -366,19 +422,7 @@ async def on_message(message):
     # ---------------------------
     text = re.sub(r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+', 'ユーアールエル', text)
 
-    # --- 修正ここから ---
-    # 辞書適用：文字数が長い順にソートして適用（長い単語を先に変換するため）
-    sorted_items = sorted(word_dict.items(), key=lambda x: len(x[0]), reverse=True)
-
-    for word, reading in sorted_items:
-        # 'w' や 'ww' の場合、前後に英数字がある場合は置換しない（BMW対策）
-        if re.fullmatch(r'w+', word, re.IGNORECASE):
-            pattern = r'(?<![a-zA-Z0-9])' + re.escape(word) + r'(?![a-zA-Z0-9])'
-            text = re.sub(pattern, reading, text)
-        else:
-            text = text.replace(word, reading)
-    # --- 修正ここまで ---
-
+    text = apply_dict(text, normalize=False)
     text = re.sub(r'<:(\w+):\d+>', r'\1', text)
     text = strip_symbols(text)
     text = romkan.to_hiragana(text)
@@ -394,7 +438,7 @@ async def on_message(message):
     success = await loop.run_in_executor(None, generate_voice, text, filename)
 
     if success:
-        bot.queues[message.guild.id].append(filename)
+        enqueue_audio(message.guild.id, filename)
         if not bot.playing_status[message.guild.id]:
             await play_next(message.guild)
 
