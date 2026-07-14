@@ -10,19 +10,13 @@
 - Follow existing project patterns before adding new abstractions.
 
 ## Codex / Claude Code Workflow
-- This `CLAUDE.md` is for Claude Code execution rules.
-- Codex handoffs should normally be saved under `docs/handoffs/`; when a handoff file path is provided, read it before editing.
-- If the project also has `AGENTS.md`, treat it as the Codex-side source of design intent, handoff rules, and review criteria.
-- When the user provides a Codex handoff, follow that handoff first, then this file, then local project conventions.
-- If the task is ambiguous, requires changing documented design intent, or needs files outside the handoff, stop and ask before editing.
-- Do not commit automatically unless explicitly requested.
-- Report changed files, summary, verification results, blocked checks, and any design questions that should return to Codex.
-
-## Model Policy
-- Run in auto mode (automatic model selection). No fixed coordinator model or default subagent delegation.
-- Codex handoffs are written to be completable without design judgment. If a design decision turns out to be required, stop and return the question to Codex.
-- Do not change documented design intent, add dependencies, or alter build/deploy/external exposure without explicit instruction.
-- If the environment cannot follow this premise, continue with the available model and report the limitation.
+- Treat `AGENTS.md` as the Codex-side source of design intent and this file as Claude Code execution rules. Follow a supplied handoff first, then this file, then local conventions.
+- Terra/Sol owns requirements and design. After design is fixed, Luna Max coordinates small sequential handoffs; Claude Code Sonnet 5 performs the delegated edits and verification.
+- Standard delegated execution from the repository root is `claude -p --model sonnet --permission-mode auto "<handoff/task prompt>"`. On Windows, keep the command line ASCII-only and read non-ASCII instructions from a UTF-8 handoff file.
+- Implement and report only the current independently verifiable slice. Wait for Luna Max review before a later slice.
+- If the handoff is ambiguous, conflicts with documented design, or requires files outside its scope, stop and return the question to Codex. Small, clearly scoped fixes may be requested directly.
+- Subagents are optional and limited to clearly parallel mechanical work within the same constraints. If an intended model is unavailable, continue only when safe and report the limitation.
+- Do not commit unless explicitly requested.
 
 ## Environment
 - Primary environment: Raspberry Pi Docker / linux/arm64

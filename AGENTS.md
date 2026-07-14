@@ -19,29 +19,15 @@ Claude Code uses `CLAUDE.md` for execution rules.
 - Claude Code base for Windows/local projects: `D:/Git/CLAUDEmdStrage/_base/CLAUDE_windows.md`
 - Claude Code base for Raspberry Pi Docker projects: `D:/Git/CLAUDEmdStrage/_base/CLAUDE_docker.md`
 
-## Role Split
-Codex is responsible for:
-- clarifying requirements, non-goals, and success criteria
-- identifying change type and design risk
-- preserving responsibility boundaries and design intent
-- preparing scoped Claude Code handoffs when execution is clear
-- reviewing Claude Code output against this file and the handoff
-- recording durable decisions in `AGENTS.md` or `docs/*.md`
-
-Claude Code is responsible for:
-- following the current Codex handoff and `CLAUDE.md`
-- editing only allowed files unless it explains why more files are required
-- running requested verification where possible
-- reporting changed files, summary, verification results, blocked checks, and design questions
-
-## Claude Code Model Policy
-Claude Code normally runs in auto mode (automatic model selection). No fixed coordinator model is assumed.
-
-To make this work:
-- Codex writes handoffs at a granularity that a Sonnet-grade model can complete without design judgment.
-- If a handoff turns out to require a design decision, Claude Code stops and returns the question to Codex instead of deciding.
-- Claude Code must not change documented design intent, expand scope beyond the handoff, introduce dependencies, build tooling, packaging, CI/CD, deployment, or external exposure changes, or touch secrets, credentials, `.env`, or local settings unless explicitly listed.
-- If the environment cannot follow this premise, Claude Code continues with what is available and reports the limitation.
+## Role Split / Model Policy
+- GPT-5.6 Terra (`gpt-5.6-terra`) or Sol (`gpt-5.6-sol`) owns requirements and design. Prefer Sol for substantial ambiguity, risk, or cross-boundary reasoning.
+- After design is fixed, GPT-5.6 Luna Max (`gpt-5.6-luna-max`) coordinates implementation through small, sequential handoffs: one independently verifiable route, subsystem boundary, or lifecycle path plus its direct regression tests.
+- Claude Code Sonnet 5 performs delegated edits and verification at effort medium from the repository root: `claude -p --model sonnet --permission-mode auto "<handoff/task prompt>"`.
+- Handoffs state the goal, files, constraints, non-goals, verification, and concrete data sources so Sonnet needs no design judgment. Claude Code implements only the current slice and returns design questions to Codex.
+- Luna Max reviews each result before preparing the next slice. Material design questions return to Terra/Sol instead of changing the approved design.
+- Codex may keep small or design-sensitive changes in one context. Fable 5 is only a medium-effort second opinion for difficult design decisions.
+- Claude Code subagents are optional and limited to clearly parallel mechanical work; they inherit the handoff and may not expand scope, change design, add dependencies, alter deployment or external exposure, or touch secrets.
+- On Windows, keep delegated command lines ASCII-only, put non-ASCII instructions in a UTF-8 handoff file, and close background `codex exec` stdin with `$null |`. If an intended model is unavailable, use an available model only when the work remains safe and report the limitation.
 
 ## Decision Rule
 Keep work in Codex when:
@@ -139,21 +125,3 @@ After Claude Code returns, review:
 Keep `AGENTS.md` focused on short, durable rules that future Codex and Claude Code sessions must follow.
 
 Do not add `Alternatives Considered` as a default Decision Log heading. When rejected options or longer background matter, summarize only the durable rule in `AGENTS.md` and put the detail under `docs/decisions/`.
-## Decision Log
-
-### YYYY-MM-DD: Decision title
-
-Context:
-- What problem or requirement caused this decision?
-
-Decision:
-- What did we decide?
-
-Reason:
-- Why is this the right tradeoff now?
-
-Constraints Introduced:
-- What should future implementation preserve?
-
-Do Not Change Casually:
-- What would cause design drift if changed without review?

@@ -32,6 +32,8 @@ services:
       - /path/to/word_dict.json:/app/word_dict.json
       # 設定ファイル（/notify など）の永続化
       - /path/to/settings.json:/app/settings.json
+      # アプリケーションログの永続化（ホスト側の ./logs に保存）
+      - ./logs:/app/logs
     environment:
       - DISCORD_TOKEN=<your-token>
       - TZ=Asia/Tokyo
@@ -73,6 +75,10 @@ services:
 docker compose up -d
 ```
 
+アプリケーションログはホスト側の `./logs/discord_tts_bot.log` に保存されます。
+1ファイル10MiB、バックアップ3世代のローテーション（最大約40MiB）です。
+標準出力にも同じログが出るため、`docker logs` でも確認できます。
+保存先は環境変数 `LOG_FILE` で変更できます（デフォルトは `/app/logs/discord_tts_bot.log`）。
 Portainer の場合は Stacks > Add stack から yaml を貼り付けてデプロイしてください。
 
 ## コマンド一覧

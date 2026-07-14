@@ -8,15 +8,69 @@ import json
 import asyncio
 import re
 import logging
+from logging.handlers import RotatingFileHandler
 import romkan
 from collections import defaultdict, deque
 import shutil
 
 # ログ設定
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+LOG_FILE = os.getenv("LOG_FILE", "/app/logs/discord_tts_bot.log")
+LOG_MAX_BYTES = 10 * 1024 * 1024
+LOG_BACKUP_COUNT = 3
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
+
+
+class RecoverableVoiceReconnectFilter(logging.Filter):
+    """Downgrade discord.py automatic voice reconnect notices."""
+
+    MESSAGE_PREFIX = "Disconnected from voice... Reconnecting in"
+
+    def filter(self, record):
+        if (
+            record.name == "discord.voice_client"
+            and record.levelno >= logging.ERROR
+            and record.getMessage().startswith(self.MESSAGE_PREFIX)
+        ):
+            record.levelno = logging.WARNING
+            record.levelname = logging.getLevelName(logging.WARNING)
+        return True
+
+
+def configure_logging():
+    formatter = logging.Formatter(LOG_FORMAT)
+    handlers = [logging.StreamHandler()]
+    log_file_error = None
+
+    try:
+        log_directory = os.path.dirname(LOG_FILE)
+        if log_directory:
+            os.makedirs(log_directory, exist_ok=True)
+        handlers.append(
+            RotatingFileHandler(
+                LOG_FILE,
+                maxBytes=LOG_MAX_BYTES,
+                backupCount=LOG_BACKUP_COUNT,
+                encoding="utf-8",
+            )
+        )
+    except (OSError, ValueError) as error:
+        log_file_error = error
+
+    for handler in handlers:
+        handler.setFormatter(formatter)
+        handler.addFilter(RecoverableVoiceReconnectFilter())
+
+    logging.basicConfig(level=logging.INFO, handlers=handlers)
+    logger = logging.getLogger(__name__)
+    if log_file_error:
+        logger.warning(
+            "Could not open application log %s; continuing with stdout only: %s",
+            LOG_FILE,
+            log_file_error,
+        )
+
+
+configure_logging()
 log = logging.getLogger(__name__)
 
 # --- 変更: RAMディスク設定とデータ展開 ---

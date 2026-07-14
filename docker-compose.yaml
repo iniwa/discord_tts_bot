@@ -9,6 +9,8 @@ services:
       - /path/to/word_dict.json:/app/word_dict.json
       # 設定ファイル（/notify など）の永続化
       - /path/to/settings.json:/app/settings.json
+      # アプリケーションログの永続化（ホスト側の ./logs に保存）
+      - ./logs:/app/logs
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - TZ=Asia/Tokyo
