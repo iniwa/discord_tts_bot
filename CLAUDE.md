@@ -1,62 +1,67 @@
 # CLAUDE.md
 
-## Project Overview
-- Purpose: Simple lightweight Discord TTS bot intended to run on Raspberry Pi via Docker.
-- Runtime target: Raspberry Pi Docker linux/arm64
-- Stack: Python, discord.py, Open JTalk, Docker
+## Purpose
 
-## Coding Style
-- Write lightweight, efficient code. Prefer minimal dependencies.
-- Follow existing project patterns before adding new abstractions.
+This file contains Claude Code execution rules for `discord_tts_bot`. Design intent, model selection, handoff policy, and Codex review belong in `AGENTS.md`.
 
-## Codex / Claude Code Workflow
-- Treat `AGENTS.md` as the Codex-side source of design intent and this file as Claude Code execution rules. Follow a supplied handoff first, then this file, then local conventions.
-- Terra/Sol owns requirements and design. After design is fixed, Luna Max coordinates small sequential handoffs; Claude Code Sonnet 5 performs the delegated edits and verification.
-- Standard delegated execution from the repository root is `claude -p --model sonnet --permission-mode auto "<handoff/task prompt>"`. On Windows, keep the command line ASCII-only and read non-ASCII instructions from a UTF-8 handoff file.
-- Implement and report only the current independently verifiable slice. Wait for Luna Max review before a later slice.
-- If the handoff is ambiguous, conflicts with documented design, or requires files outside its scope, stop and return the question to Codex. Small, clearly scoped fixes may be requested directly.
-- Subagents are optional and limited to clearly parallel mechanical work within the same constraints. If an intended model is unavailable, continue only when safe and report the limitation.
-- Do not commit unless explicitly requested.
+## Read First
 
-## Environment
-- Primary environment: Raspberry Pi Docker / linux/arm64
-- Working in `D:/Git/` means Home Sub PC.
-- Working in `C:/Git/` means Home Main PC.
-- Working in `C:/Users/**/Documents/git/` means Remote PC with limited environment.
-- Raspberry Pi is accessible via `ssh iniwapi` for reading code/logs.
-- Preserve Docker and arm64 deployment behavior unless explicitly requested.
+Before editing, read:
 
-## Important Files
-- README.md
-- bot.py
-- requirements.txt
-- Dockerfile
-- docker-compose.yaml
+- `AGENTS.md` and this file.
+- The supplied handoff, when present.
+- The files listed for inspection and the existing nearby implementation.
+- `README.md`, `Dockerfile`, `docker-compose.yaml`, and `requirements.txt` when the task affects runtime or deployment behavior.
 
-## Protected Files
-- Do not edit or delete: `.env`, real `word_dict.json` / `settings.json` runtime data, `mei_normal.htsvoice`, secrets.
-- Repo copies of `word_dict.json` are sample data; production data lives on the Raspberry Pi host.
+If the instructions conflict, required files are outside the approved scope, or design remains unresolved, stop and return the issue to Codex.
+
+## Project Shape
+
+- `bot.py` is the Python 3.11 application entry point.
+- `requirements.txt` owns Python dependencies.
+- `Dockerfile` builds the Open JTalk and FFmpeg runtime.
+- `docker-compose.yaml` defines tmpfs, mutable mounts, environment, restart, resource, and logging behavior.
+- The primary runtime is Raspberry Pi `linux/arm64`; the image workflow also supports `linux/amd64`.
+
+## Execution Rules
+
+- Implement only the current independently verifiable slice and wait for Codex review before starting another.
+- Keep changes simple and follow the existing single-bot architecture before adding abstractions or dependencies.
+- Preserve Raspberry Pi arm64 compatibility and the existing Open JTalk, MeCab dictionary, FFmpeg, voice-file, tmpfs, queue, and command behavior unless the task explicitly changes it.
+- Keep `word_dict.json`, `settings.json`, and logs as mutable host-mounted state outside the image.
+- Preserve non-root execution and startup ownership handling for mounted files and `/ram_cache`.
+- Preserve stdout logging as well as rotating file logging and the `LOG_FILE` override.
+- Return any proposed dependency, image, platform, mount, Portainer, deployment, CI/CD, registry, or external-exposure change outside the approved handoff to Codex.
+- On Windows, keep a delegated command line ASCII-only when its instructions contain non-ASCII text; put those instructions in a UTF-8 handoff file.
+
+## Safety and Scope
+
+- Preserve unrelated user and other-agent changes. Treat unexpected diffs as having unknown authorship and exclude them from the task.
+- Do not read, edit, or expose `.env`, real Discord tokens, production `word_dict.json`, production `settings.json`, logs, runtime state, or generated audio.
+- The tracked `word_dict.json` is sample data; edit it only when the task explicitly targets the sample.
+- Do not modify or replace `mei_normal.htsvoice` in unrelated work.
+- Do not add dependencies or change build, packaging, deployment, publication, or external exposure unless the approved task explicitly requires it.
+- Do not commit, push, publish, or deploy unless explicitly requested.
 
 ## Verification
-- Run the checks listed in the Codex handoff.
-- Baseline check when no handoff specifies one: `python -m py_compile bot.py`
-- If verification cannot be run, report the reason.
 
-## Reporting
-- Changed files
-- Summary
-- Verification results
-- Blocked checks
-- Design questions for Codex
+Run the smallest relevant verification:
 
-## Tooling
-- Use **Serena MCP** tools for code navigation and editing to maximize efficiency (symbol search, overview, replace, insert, etc.)
-- Use **Tavily MCP** tools for web search and research:
-  - `tavily_search` — General web search for documentation, error messages, library usage, etc.
-  - `tavily_crawl` — Crawl a specific website for detailed information
-  - `tavily_extract` — Extract structured content from a URL
-  - `tavily_research` — In-depth research on a topic (use for complex or multi-faceted questions)
+- Always run `git diff --check`.
+- For Python changes, run `python -m py_compile bot.py`.
+- For Compose changes, run `docker compose config` when available.
+- For dependency, Dockerfile, or architecture-sensitive changes, run the focused container build or runtime check available within scope.
+- Report target-host or Docker checks that could not run and why.
 
-## Knowledge Persistence
-Durable project workflow decisions belong in AGENTS.md. Surface implementation discoveries that should guide future sessions so Codex can decide whether to record them.
-Detailed design history belongs in `docs/decisions/`. Keep `AGENTS.md` focused on short, durable rules; do not add `Alternatives Considered` as a default Decision Log heading there.
+## Report
+
+Return:
+
+- Changed files.
+- Concise summary.
+- Verification commands and results.
+- Blocked checks.
+- Subagent usage.
+- Design questions for Codex.
+
+Report reusable discoveries to Codex. Update durable documentation only when it is inside the approved scope.

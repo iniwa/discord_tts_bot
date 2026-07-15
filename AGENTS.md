@@ -1,127 +1,69 @@
 # AGENTS.md
 
 ## Purpose
-This file is the Codex-side working agreement for `discord_tts_bot`.
 
-Codex uses this file to preserve design intent, decide whether work should stay in Codex or be handed off to Claude Code, and review implementation results.
-Claude Code uses `CLAUDE.md` for execution rules.
+This is the Codex-side working agreement for `discord_tts_bot`, a lightweight self-hosted Discord text-to-speech bot.
 
-## Project Summary
-- Project name: `discord_tts_bot`
-- Purpose: Simple lightweight Discord TTS bot intended to run on Raspberry Pi via Docker.
-- Summary from project docs: Simple lightweight Discord TTS bot intended to run on Raspberry Pi via Docker.
-- Runtime target: Raspberry Pi Docker linux/arm64
-- Repository path: `D:\Git\discord_tts_bot`
-- Stack: Python, discord.py, Open JTalk, Docker
+`AGENTS.md` owns design intent, model and handoff policy, Codex review, and documentation lifecycle. `CLAUDE.md` owns implementation, verification, and reporting rules.
 
-## Base References
-- Codex base: `D:/Git/CLAUDEmdStrage/_base/AGENTS.md`
-- Claude Code base for Windows/local projects: `D:/Git/CLAUDEmdStrage/_base/CLAUDE_windows.md`
-- Claude Code base for Raspberry Pi Docker projects: `D:/Git/CLAUDEmdStrage/_base/CLAUDE_docker.md`
+## Project Facts
 
-## Role Split / Model Policy
-- GPT-5.6 Terra (`gpt-5.6-terra`) or Sol (`gpt-5.6-sol`) owns requirements and design. Prefer Sol for substantial ambiguity, risk, or cross-boundary reasoning.
-- After design is fixed, GPT-5.6 Luna Max (`gpt-5.6-luna-max`) coordinates implementation through small, sequential handoffs: one independently verifiable route, subsystem boundary, or lifecycle path plus its direct regression tests.
-- Claude Code Sonnet 5 performs delegated edits and verification at effort medium from the repository root: `claude -p --model sonnet --permission-mode auto "<handoff/task prompt>"`.
-- Handoffs state the goal, files, constraints, non-goals, verification, and concrete data sources so Sonnet needs no design judgment. Claude Code implements only the current slice and returns design questions to Codex.
-- Luna Max reviews each result before preparing the next slice. Material design questions return to Terra/Sol instead of changing the approved design.
-- Codex may keep small or design-sensitive changes in one context. Fable 5 is only a medium-effort second opinion for difficult design decisions.
-- Claude Code subagents are optional and limited to clearly parallel mechanical work; they inherit the handoff and may not expand scope, change design, add dependencies, alter deployment or external exposure, or touch secrets.
-- On Windows, keep delegated command lines ASCII-only, put non-ASCII instructions in a UTF-8 handoff file, and close background `codex exec` stdin with `$null |`. If an intended model is unavailable, use an available model only when the work remains safe and report the limitation.
+- Runtime: Python 3.11 in Docker, primarily on Raspberry Pi `linux/arm64`.
+- Entry point: `bot.py`.
+- Core stack: discord.py, Open JTalk, MeCab dictionary data, FFmpeg, and lightweight Python dependencies in `requirements.txt`.
+- Container definitions: `Dockerfile` and `docker-compose.yaml`.
+- The published image workflow supports `linux/amd64` and `linux/arm64`; Raspberry Pi compatibility must remain intact.
+- Open JTalk dictionary, voice data, and temporary audio are copied into the `/ram_cache` tmpfs at runtime.
+- `word_dict.json`, `settings.json`, and application logs are mutable host-mounted data in production. The tracked `word_dict.json` is sample data.
+- Logging must remain available on stdout and through the rotating file handler.
 
-## Decision Rule
-Keep work in Codex when:
-- requirements are ambiguous
-- design intent or responsibility boundaries may change
-- the task is small enough to edit and review in one context
-- the main value is planning, review, or documentation consistency
+## Model and Role Policy
 
-Hand off to Claude Code when:
-- goal, files, constraints, non-goals, and verification are clear
-- the task is mostly implementation or mechanical editing
-- the allowed edit scope can be stated explicitly
-- Claude Code tooling or iteration speed is useful
+- Use GPT-5.3-Codex-Spark (`gpt-5.3-codex-spark`) proactively, when available, for low-risk, well-scoped, independently verifiable supporting work that requires no material design judgment or source-code implementation.
+- GPT-5.6 Terra (`gpt-5.6-terra`) or Sol (`gpt-5.6-sol`) owns requirements and design. Whenever Terra is used, set its reasoning level to `high`. Prefer Sol for substantial ambiguity, risk, or cross-boundary reasoning.
+- After design is fixed, delegate source-code implementation first to Claude Code Sonnet 5 at effort medium from the repository root: `claude -p --model sonnet --permission-mode auto "<handoff/task prompt>"`.
+- Only when Sonnet 5 is unavailable because of usage limits or service availability, use GPT-5.6 Luna (`gpt-5.6-luna`) with reasoning level `max` for the same implementation slice.
+- Implementation failure, failed verification, or a design question is not model unavailability; return it to Codex.
+- Apply this policy to every coordinating Codex model and its subagents. Do not create coordinator-specific exceptions.
+- Codex may keep requirements, design, read-only investigation, review, synthesis, and small documentation-consistency changes in one context.
+- Claude Code subagents are optional and limited to clearly parallel mechanical work inside the approved handoff.
 
-## Project-Specific Guidance
-- Use Raspberry Pi / Docker guidance from `D:/Git/CLAUDEmdStrage/_base`.
-- Preserve `linux/arm64` compatibility unless the project explicitly supports more architectures.
-- Do not change deployment, image naming, Portainer, or external exposure behavior without explicit approval.
+## Durable Project Rules
 
-## Files To Inspect First
-- README.md
-- bot.py
-- requirements.txt
-- Dockerfile
-- docker-compose.yaml
+- Keep the bot simple, lightweight, and compatible with Raspberry Pi `linux/arm64`.
+- Preserve the existing Open JTalk, dictionary, voice-file, FFmpeg, tmpfs, queue, and Discord command behavior unless the approved task changes it.
+- Keep mutable state outside the image. Preserve the established host mounts for `word_dict.json`, `settings.json`, and logs.
+- Preserve non-root container execution and the startup ownership handling required by mounted files and `/ram_cache`.
+- Preserve stdout logging alongside rotating file logging and its `LOG_FILE` override.
+- Do not change image naming, GHCR publication, supported platforms, Compose/Portainer deployment, mounts, restart behavior, resource limits, or external exposure unless explicitly requested.
+- Never store a real Discord token or other credential in tracked files.
+- Treat `mei_normal.htsvoice`, production dictionaries, settings, logs, and generated audio as protected data or heavy assets; do not touch them in unrelated work.
+- Preserve unrelated changes. Do not commit, push, publish, or deploy unless explicitly requested.
 
-## Files Claude Code May Edit In Scoped Tasks
-- bot.py
-- requirements.txt
-- Dockerfile
-- docker-compose.yaml
+## Handoff Workflow
 
-## Constraints
-- Keep the bot simple and lightweight.
-- Preserve Raspberry Pi / arm64 compatibility.
-- Do not include real Discord tokens or secrets.
-- Keep voice assets and dictionaries out of unrelated refactors.
-- Do not commit automatically unless explicitly requested.
-- Do not revert user or other-agent changes unless explicitly requested.
-- Do not edit secrets, credentials, `.env`, local runtime data, or generated heavy artifacts unless explicitly requested.
+- Keep policy, design, review, read-only investigation, and small documentation corrections in Codex.
+- One handoff covers one cohesive, independently verifiable change and its direct regression coverage when applicable. Run unresolved discovery as a separate read-only slice.
+- State the goal, files to inspect and edit, constraints, non-goals, concrete data sources, verification, and expected report.
+- If a handoff times out before its intended edit, do not rerun it unchanged. Narrow the behavior, files, and verification first.
+- The implementer works only on the current slice and returns design questions to Codex. Codex reviews the report and diff before starting another slice.
+- Keep active or blocked handoffs in `docs/handoffs/`. Move a handoff to `docs/handoffs/archive/` only after implementation, verification, review, required runtime work, and follow-up are complete.
 
-## Handoff Template
-When Codex hands work to Claude Code, create `docs/handoffs/YYYY-MM-DD-<short-task>.md`. Create the `docs/handoffs/` directory if it does not exist. Use this format in that file.
+## Verification and Review
 
-```md
-Read AGENTS.md, CLAUDE.md, and this handoff file before implementation.
-If implementation would violate constraints or require files outside this handoff, stop and ask before editing.
+Use the smallest check that demonstrates the scoped change:
 
-## Goal
-...
+- Run `git diff --check` for every change.
+- Run `python -m py_compile bot.py` for Python changes.
+- Run `docker compose config` for Compose changes when Docker Compose is available.
+- For dependency, Dockerfile, or architecture-sensitive changes, perform the focused container build or runtime check available in the approved environment and report any target-host check that remains blocked.
 
-## Background
-...
+During review, confirm that the diff stayed in scope, preserved arm64 and mutable-data boundaries, introduced no unapproved dependency or deployment change, kept secrets and heavy assets untouched, and reported blocked verification explicitly.
 
-## Files To Inspect
-- ...
+## Documentation Lifecycle
 
-## Files To Edit
-- ...
-
-## Constraints
-- ...
-
-## Non Goals
-- ...
-
-## Verification
-- ...
-
-## Expected Report
-- Changed files
-- Summary
-- Verification results
-- Blocked checks
-- Design questions for Codex
-```
-
-## Codex Review Checklist
-After Claude Code returns, review:
-- Did the diff stay inside the handoff?
-- Did any file outside `Files To Edit` change? If yes, was it necessary?
-- Did the implementation preserve stated constraints and non-goals?
-- Did it introduce dependencies, build tooling, packaging, CI/CD, deployment changes, or external exposure changes unexpectedly?
-- Did it touch secrets, credentials, `.env`, local settings, or runtime data?
-- Did verification run, and are blocked checks explained?
-- Does any discovery need to become a new `AGENTS.md` or `docs/*.md` decision?
-
-## Knowledge Persistence
-- Use `AGENTS.md` for durable workflow and design decisions.
-- Use `docs/*.md` for reusable technical notes, architecture details, procedures, and project-specific knowledge.
-- Before meaningful work, check relevant existing docs.
-- Do not silently encode durable design decisions only in code.
-
-## Design Record Scope
-Keep `AGENTS.md` focused on short, durable rules that future Codex and Claude Code sessions must follow.
-
-Do not add `Alternatives Considered` as a default Decision Log heading. When rejected options or longer background matter, summarize only the durable rule in `AGENTS.md` and put the detail under `docs/decisions/`.
+- Keep this file limited to short, current, durable rules and links.
+- Put detailed decisions and evidence in `docs/decisions/`.
+- Keep current decision guidance active; archive it only when fully implemented and no longer needed.
+- Put reusable procedures in an appropriate `docs/` location.
+- Do not rewrite completed handoffs or archived decisions merely to match a newer shared policy.
