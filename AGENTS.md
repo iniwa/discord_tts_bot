@@ -4,7 +4,7 @@
 
 This is the Codex-side working agreement for `discord_tts_bot`, a lightweight self-hosted Discord text-to-speech bot.
 
-`AGENTS.md` owns design intent, model and handoff policy, Codex review, and documentation lifecycle. `CLAUDE.md` owns implementation, verification, and reporting rules.
+`AGENTS.md` owns design intent, model and handoff policy, Codex review, and documentation lifecycle. `CLAUDE.md` provides compatibility guidance for implementation, verification, and reporting.
 
 ## Project Facts
 
@@ -30,15 +30,15 @@ The active handoff or equivalent inline prompt is the approved task scope. Verif
 
 ## Model and Role Policy
 
-- Use GPT-5.3-Codex-Spark (`gpt-5.3-codex-spark`) proactively, when available, for low-risk, well-scoped, independently verifiable supporting work that requires no material design judgment or source-code implementation.
-- GPT-5.6 Terra (`gpt-5.6-terra`) or Sol (`gpt-5.6-sol`) owns requirements and design. Whenever Terra is used, set its reasoning level to `high`. Prefer Sol for substantial ambiguity, risk, or cross-boundary reasoning.
-- Run every Claude Code task with `--permission-mode auto`.
-- After design is fixed, delegate source-code implementation first to Claude Code Sonnet at effort medium from the repository root: `claude -p --model sonnet --effort medium --permission-mode auto "<handoff/task prompt>"`.
-- Only when Sonnet is unavailable because of usage limits or service availability, use GPT-5.6 Luna (`gpt-5.6-luna`) with reasoning level `max` for the same implementation slice.
-- Implementation failure, failed verification, or a design question is not model unavailability; return it to Codex.
-- Apply this policy to every coordinating Codex model and its subagents. Do not create coordinator-specific exceptions unless the user explicitly changes project policy.
-- Codex may keep requirements, design, read-only investigation, review, synthesis, and small documentation-consistency changes in one context.
-- Claude Code subagents are optional and limited to clearly parallel mechanical work inside the approved task scope. They inherit its constraints.
+- Before implementation, classify the initial route from acceptance evidence as `small-primary` for small or transfer-negative work, `bounded` for settled multi-step work with one verifiable writer, `adaptive` when unresolved native/platform/runtime or cross-subsystem behavior is material, or `non-implementation` for analysis, design, review, or operations. This does not force delegation; reclassify only after a material scope change or contract reset.
+- Reintegrate through the stable diff and verification evidence; do not repeat delegated discovery merely to re-establish context.
+- Identify a genuinely independent phase with its own acceptance and verification as a fresh Codex task or chat boundary.
+- The user selects the primary model at runtime; do not require a named model or execution product.
+- Keep requirements, design, and small documentation corrections in the primary context. Ordinary delegation uses native Codex agents: one `bounded_implementer` for settled cohesive work when transfer helps, or `adaptive_implementer` directly when acceptance depends on unresolved platform, native lifecycle, or cross-layer behavior.
+- Use `bounded_explorer` agents only for genuinely independent read-only discovery. Use a `bounded_reviewer` only for a concrete material correctness, security, compatibility, or verification risk, and only after the writer's stable self-review gate. If implementation changes after review starts, treat that review as diagnostic and run one fresh final review only when risk warrants it.
+- Keep one active writer for overlapping files. After a second correction round, or two blocked/partial returns, reset the primary contract before continuing. If custom roles are not observable, keep the work in the primary context or use an observable equivalent.
+- Claude Code is not an approved execution route unless the user explicitly changes project policy.
+- Prefer the smallest correct change and reuse existing or platform-native capabilities before adding dependencies or abstractions.
 
 ## Durable Project Rules
 

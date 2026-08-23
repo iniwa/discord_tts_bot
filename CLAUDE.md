@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This file contains Claude Code execution rules for `discord_tts_bot`. Design intent, model selection, handoff policy, and Codex review belong in `AGENTS.md`.
+This file is a compatibility boundary for readers that look for `CLAUDE.md`. Current policy, role selection, delegation, approvals, and review rules are in `AGENTS.md`.
 
 ## Read First
 
@@ -34,7 +34,7 @@ The handoff or equivalent inline prompt is the approved task scope. It may narro
 ## Execution Rules
 
 - If the user writes in Japanese, respond in Japanese. Preserve the repository's established language for documentation, comments, identifiers, logs, and user-facing text unless the task changes it.
-- Every Claude Code task runs with `--permission-mode auto`; this does not expand the approved scope or authorize otherwise restricted actions.
+- Any compatible reader must follow the approved scope and safety boundaries in `AGENTS.md`; compatibility text does not authorize a separate execution route.
 - Keep changes simple and follow the existing single-bot architecture before adding abstractions or dependencies.
 - Preserve Raspberry Pi arm64 compatibility and the existing Open JTalk, MeCab dictionary, FFmpeg, voice-file, tmpfs, queue, and command behavior unless the task explicitly changes it.
 - Keep `word_dict.json`, `settings.json`, and logs as mutable host-mounted state outside the image.
