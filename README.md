@@ -135,7 +135,7 @@ docker compose up -d --build
 
 ### 開発ワークフロー
 
-- 設計判断・作業指示は Codex が担当し、handoff（`docs/handoffs/`）を作成します。実装・検証は Claude Code が担当します（詳細は `AGENTS.md` / `CLAUDE.md`）
+- 設計判断・作業指示は Codex が担当し、必要に応じて native Codex agent へ scoped handoff（`docs/handoffs/`）を作成します。実装・検証の役割は `AGENTS.md` の現行ポリシーに従います（`CLAUDE.md` は互換境界です）
 - 改善候補は `docs/improvements.md` のチェックリストで管理します（機能追加のアイデアは対象外）
 - 最低限の検証: `python -m py_compile bot.py`（動作確認は Raspberry Pi 上の Docker で行う）
 
